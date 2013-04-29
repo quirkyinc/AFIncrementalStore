@@ -41,6 +41,7 @@
  
  */
 @property (readonly, nonatomic, strong) TTTStringInflector *inflector;
+@property (readonly, nonatomic, strong) NSArray *possibleIdentifierKeys;
 
 ///------------------------
 /// @name Determining Paths

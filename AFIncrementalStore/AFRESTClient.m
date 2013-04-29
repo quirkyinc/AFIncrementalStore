@@ -192,6 +192,11 @@ static NSString * AFQueryByAppendingParameters(NSString *query, NSDictionary *pa
     return mutableRelationshipRepresentations;
 }
 
+- (NSArray *)possibleIdentifierKeys
+{
+    return @[];
+}
+
 - (NSString *)resourceIdentifierForRepresentation:(NSDictionary *)representation
                                          ofEntity:(NSEntityDescription *)entity
                                      fromResponse:(NSHTTPURLResponse *)response
@@ -201,6 +206,8 @@ static NSString * AFQueryByAppendingParameters(NSString *query, NSDictionary *pa
     dispatch_once(&onceToken, ^{
         _candidateKeys = [[NSArray alloc] initWithObjects:@"id", @"_id", @"identifier", @"url", @"URL", nil];
     });
+    
+    _candidateKeys = [_candidateKeys arrayByAddingObjectsFromArray:[self possibleIdentifierKeys]];
     
     NSString *key = [[representation allKeys] firstObjectCommonWithArray:_candidateKeys];
     if (key) {
