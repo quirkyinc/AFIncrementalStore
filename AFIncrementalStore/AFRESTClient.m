@@ -366,6 +366,7 @@ static NSString * AFQueryByAppendingParameters(NSString *query, NSDictionary *pa
 }
 
 - (NSDictionary *)parametersForFetchRequest:(NSFetchRequest *)fetchRequest {
+    
     NSMutableDictionary *mutableParameters = [NSMutableDictionary dictionary];
     if (fetchRequest.fetchOffset > 0) {
         [mutableParameters setValue:[NSString stringWithFormat:@"%u", fetchRequest.fetchOffset] forKey:self.offsetParameter];
