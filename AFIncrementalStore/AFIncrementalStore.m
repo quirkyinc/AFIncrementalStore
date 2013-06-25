@@ -106,6 +106,12 @@ inline NSString * AFResourceIdentifierFromReferenceObject(id referenceObject) {
     @throw([NSException exceptionWithName:AFIncrementalStoreUnimplementedMethodException reason:NSLocalizedString(@"Unimplemented method: +model. Must be overridden in a subclass", nil) userInfo:nil]);
 }
 
+- (void)dealloc
+{
+    _backingPersistentStoreCoordinator = nil;
+    _backingManagedObjectContext = nil;
+}
+
 #pragma mark -
 
 - (void)notifyManagedObjectContext:(NSManagedObjectContext *)context
