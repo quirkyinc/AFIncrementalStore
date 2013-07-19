@@ -366,13 +366,16 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
               withContext:(NSManagedObjectContext *)context
                     error:(NSError *__autoreleasing *)error
 {
-    NSURLRequest *request = [self.HTTPClient requestForFetchRequest:fetchRequest withContext:context];
+    __weak NSManagedObjectContext *weakContext = context;
+    
+    NSURLRequest *request = [self.HTTPClient requestForFetchRequest:fetchRequest withContext:weakContext];
     if ([request URL]) {
+        
         AFHTTPRequestOperation *operation = [self.HTTPClient HTTPRequestOperationWithRequest:request success:^(AFHTTPRequestOperation *operation, id responseObject) {
             id representationOrArrayOfRepresentations = [self.HTTPClient representationOrArrayOfRepresentationsOfEntity:fetchRequest.entity fromResponseObject:responseObject];
             
             NSManagedObjectContext *childContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
-            childContext.parentContext = context;
+            childContext.parentContext = weakContext;
             childContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy;
             
             [childContext performBlockAndWait:^{
@@ -385,37 +388,37 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                     }
                     
                     for (NSManagedObject *childObject in childObjects) {
-                        NSManagedObject *parentObject = [context objectWithID:childObject.objectID];
+                        NSManagedObject *parentObject = [weakContext objectWithID:childObject.objectID];
                         [parentObject.managedObjectContext refreshObject:parentObject mergeChanges:NO];
                     }
                     
-                    [context performBlockAndWait:^{
+                    [weakContext performBlockAndWait:^{
                         for (NSManagedObject *childObject in childObjects) {
-                            NSManagedObject *parentObject = [context objectWithID:childObject.objectID];
+                            NSManagedObject *parentObject = [weakContext objectWithID:childObject.objectID];
                             [parentObject willChangeValueForKey:@"self"];
-                            [context refreshObject:parentObject mergeChanges:NO];
+                            [weakContext refreshObject:parentObject mergeChanges:NO];
                             [parentObject didChangeValueForKey:@"self"];
                         }
                     }];
                     
                     NSMutableArray *fetchedObjects = [[NSMutableArray alloc] initWithCapacity:[managedObjects count]];
                     for (NSManagedObject *managedObject in managedObjects) {
-                        NSManagedObject *fetchedObject = [context existingObjectWithID:managedObject.objectID error:NULL];
+                        NSManagedObject *fetchedObject = [weakContext existingObjectWithID:managedObject.objectID error:NULL];
                         if (fetchedObject) {
                             [fetchedObjects addObject:fetchedObject];
                         }
                     }
                     [fetchedObjects sortUsingDescriptors:fetchRequest.sortDescriptors];
                     
-                    [self notifyManagedObjectContext:context aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:fetchedObjects];
+                    [self notifyManagedObjectContext:weakContext aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:fetchedObjects];
                 }];
             }];
         } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
             NSLog(@"Error: %@", error);
-            [self notifyManagedObjectContext:context aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:nil];
+            [self notifyManagedObjectContext:weakContext aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:nil];
         }];
         
-        [self notifyManagedObjectContext:context aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:nil];
+        [self notifyManagedObjectContext:weakContext aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:nil];
         [self.HTTPClient enqueueHTTPRequestOperation:operation];
     }
     
@@ -432,7 +435,7 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
             NSMutableArray *mutableObjects = [NSMutableArray arrayWithCapacity:[results count]];
             for (NSString *resourceIdentifier in [results valueForKeyPath:kAFIncrementalStoreResourceIdentifierAttributeName]) {
                 NSManagedObjectID *objectID = [self objectIDForEntity:fetchRequest.entity withResourceIdentifier:resourceIdentifier];
-                NSManagedObject *object = [context objectWithID:objectID];
+                NSManagedObject *object = [weakContext objectWithID:objectID];
                 object.af_resourceIdentifier = resourceIdentifier;
                 [mutableObjects addObject:object];
             }
