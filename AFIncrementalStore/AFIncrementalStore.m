@@ -34,6 +34,8 @@ NSString * const AFIncrementalStoreRequestOperationKey = @"AFIncrementalStoreReq
 NSString * const AFIncrementalStorePersistentStoreRequestKey = @"AFIncrementalStorePersistentStoreRequest";
 NSString * const AFIncrementalStoreFetchedObjectsKey = @"AFIncrementalStoreFetchedObjectsKey";
 
+NSString *const AFIncrementalStoreRequestFailedNotification = @"AFIncrementalStoreRequestFailedNotification";
+
 static char kAFResourceIdentifierObjectKey;
 
 static NSString * const kAFIncrementalStoreResourceIdentifierAttributeName = @"__af_resourceIdentifier";
@@ -415,6 +417,8 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
             }];
         } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
             NSLog(@"Error: %@", error);
+            
+            [[NSNotificationCenter defaultCenter] postNotificationName:AFIncrementalStoreRequestFailedNotification object:error];
             [self notifyManagedObjectContext:weakContext aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjects:nil];
         }];
         

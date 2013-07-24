@@ -342,3 +342,10 @@ extern NSString * const AFIncrementalStoreRequestOperationKey;
 extern NSString * const AFIncrementalStorePersistentStoreRequestKey;
 
 extern NSString * const AFIncrementalStoreFetchedObjectsKey;
+
+///------------------------------------------
+/// Notification when request fails. - WDC
+///------------------------------------------
+extern NSString *const AFIncrementalStoreRequestFailedNotification;
+
+
