@@ -408,7 +408,7 @@ static NSUInteger const kAFPaginationDefaultPerPage = 20;
 
 - (NSDictionary *)parametersForFetchRequest:(NSFetchRequest *)fetchRequest {
     NSUInteger perPage = fetchRequest.fetchLimit == 0 ? kAFPaginationDefaultPerPage : fetchRequest.fetchLimit;
-    NSUInteger page = fetchRequest.fetchOffset == 0 ? kAFPaginationDefaultPage : (NSUInteger)floorf((float)fetchRequest.fetchOffset / (float)perPage) + 1;
+    NSUInteger page = fetchRequest.fetchOffset == 0 ? kAFPaginationDefaultPage : (NSUInteger)ceilf((float)(fetchRequest.fetchOffset + perPage) / (float)perPage);
     
     NSMutableDictionary *mutableParameters = [NSMutableDictionary dictionary];
     [mutableParameters setValue:[NSString stringWithFormat:@"%u", page] forKey:self.pageParameter];
