@@ -447,6 +447,9 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
             NSLog(@"Error: %@", error);
             [self notifyManagedObjectContext:context aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjectIDs:nil];
         }];
+        
+        dispatch_queue_t backgroundQueue = dispatch_queue_create("com.name.bgqueue", NULL);
+        operation.successCallbackQueue = backgroundQueue;
 
         [self notifyManagedObjectContext:context aboutRequestOperation:operation forFetchRequest:fetchRequest fetchedObjectIDs:nil];
         [self.HTTPClient enqueueHTTPRequestOperation:operation];
