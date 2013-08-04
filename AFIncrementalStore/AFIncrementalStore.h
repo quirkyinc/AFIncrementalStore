@@ -400,3 +400,8 @@ extern NSString * const AFIncrementalStoreFaultingRelationshipKey;
  A key in the `userInfo` dictionary in a `AFIncrementalStoreContextWillFetchRemoteValues` or `AFIncrementalStoreContextDidFetchRemoteValues` notification.
  The corresponding value is an `NSPersistentStoreRequest` object representing the associated fetch or save request. */
 extern NSString * const AFIncrementalStorePersistentStoreRequestKey;
+
+///------------------------------------------
+/// Notification when request fails. - WDC
+///------------------------------------------
+extern NSString * const AFIncrementalStoreRequestFailedNotification;
