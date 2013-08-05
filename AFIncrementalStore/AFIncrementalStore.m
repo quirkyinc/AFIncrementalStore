@@ -822,7 +822,10 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                         [managedObject setValuesForKeysWithDictionary:mutableAttributeValues];
 
                         NSManagedObjectID *backingObjectID = [self objectIDForBackingObjectForEntity:[objectID entity] withResourceIdentifier:AFResourceIdentifierFromReferenceObject([self referenceObjectForObjectID:objectID])];
-                        NSManagedObject *backingObject = [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+                        __block NSManagedObject *backingObject = nil;
+                        [[self backingManagedObjectContext] performBlockAndWait:^{
+                            backingObject = [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+                        }];
                         [backingObject setValuesForKeysWithDictionary:mutableAttributeValues];
 
                         NSString *lastModified = [[operation.response allHeaderFields] valueForKey:@"Last-Modified"];
@@ -877,7 +880,12 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                         NSManagedObject *managedObject = [childContext objectWithID:objectID];
                         
 						NSManagedObjectID *backingObjectID = [self objectIDForBackingObjectForEntity:[objectID entity] withResourceIdentifier:AFResourceIdentifierFromReferenceObject([self referenceObjectForObjectID:objectID])];
-                        NSManagedObject *backingObject = (backingObjectID == nil) ? nil : [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+                        __block NSManagedObject *backingObject = nil;
+                        if (backingObjectID) {
+                            [[self backingManagedObjectContext] performBlockAndWait:^{
+                                backingObject = [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+                            }];
+                        }
 
                         if ([relationship isToMany]) {
                             if ([relationship isOrdered]) {
@@ -915,7 +923,13 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
     }
     
     NSManagedObjectID *backingObjectID = [self objectIDForBackingObjectForEntity:[objectID entity] withResourceIdentifier:AFResourceIdentifierFromReferenceObject([self referenceObjectForObjectID:objectID])];
-    NSManagedObject *backingObject = (backingObjectID == nil) ? nil : [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+    
+    __block NSManagedObject *backingObject = nil;
+    if (backingObjectID) {
+        [[self backingManagedObjectContext] performBlockAndWait:^{
+            backingObject = [[self backingManagedObjectContext] existingObjectWithID:backingObjectID error:nil];
+        }];
+    }
     
     if (backingObject) {
         id backingRelationshipObject = [backingObject valueForKeyPath:relationship.name];
