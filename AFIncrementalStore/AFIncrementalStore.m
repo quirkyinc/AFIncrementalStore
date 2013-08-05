@@ -68,10 +68,12 @@ inline NSString * AFResourceIdentifierFromReferenceObject(id referenceObject) {
 }
 
 static inline void AFSaveManagedObjectContextOrThrowInternalConsistencyException(NSManagedObjectContext *managedObjectContext) {
-    NSError *error = nil;
-    if (![managedObjectContext save:&error]) {
-        @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:[error localizedFailureReason] userInfo:[NSDictionary dictionaryWithObject:error forKey:NSUnderlyingErrorKey]];
-    }
+    [managedObjectContext performBlockAndWait:^{
+        NSError *error = nil;
+        if (![managedObjectContext save:&error]) {
+            @throw [NSException exceptionWithName:NSInternalInconsistencyException reason:[error localizedFailureReason] userInfo:[NSDictionary dictionaryWithObject:error forKey:NSUnderlyingErrorKey]];
+        }        
+    }];
 }
 
 @interface NSManagedObject (_AFIncrementalStore)
@@ -366,7 +368,9 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
         [backingObject setValuesForKeysWithDictionary:attributes];
         
         if (!backingObjectID) {
-            [context insertObject:managedObject];
+            [context performBlockAndWait:^{
+                [context insertObject:managedObject];
+            }];
         }
         
         NSDictionary *relationshipRepresentations = [self.HTTPClient representationsForRelationshipsFromRepresentation:representation ofEntity:entity fromResponse:response];
@@ -466,12 +470,18 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
         case NSManagedObjectResultType: {
             backingFetchRequest.resultType = NSDictionaryResultType;
             backingFetchRequest.propertiesToFetch = [NSArray arrayWithObject:kAFIncrementalStoreResourceIdentifierAttributeName];
-            NSArray *results = [backingContext executeFetchRequest:backingFetchRequest error:error];
+            __block NSArray *results = nil;
+            [backingContext performBlockAndWait:^{
+                results = [backingContext executeFetchRequest:backingFetchRequest error:error];                
+            }];
 
             NSMutableArray *mutableObjects = [NSMutableArray arrayWithCapacity:[results count]];
             for (NSString *resourceIdentifier in [results valueForKeyPath:kAFIncrementalStoreResourceIdentifierAttributeName]) {
                 NSManagedObjectID *objectID = [self objectIDForEntity:fetchRequest.entity withResourceIdentifier:resourceIdentifier];
-                NSManagedObject *object = [context objectWithID:objectID];
+                __block NSManagedObject *object = nil;
+                [context performBlockAndWait:^{
+                    object = [context objectWithID:objectID];
+                }];
                 object.af_resourceIdentifier = resourceIdentifier;
                 [mutableObjects addObject:object];
             }
@@ -479,11 +489,17 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
             return mutableObjects;
         }
         case NSManagedObjectIDResultType: {
-            NSArray *backingObjectIDs = [backingContext executeFetchRequest:backingFetchRequest error:error];
+            __block NSArray *backingObjectIDs = nil;
+            [backingContext performBlockAndWait:^{
+                backingObjectIDs = [backingContext executeFetchRequest:backingFetchRequest error:error];                
+            }];
             NSMutableArray *managedObjectIDs = [NSMutableArray arrayWithCapacity:[backingObjectIDs count]];
             
             for (NSManagedObjectID *backingObjectID in backingObjectIDs) {
-                NSManagedObject *backingObject = [backingContext objectWithID:backingObjectID];
+                __block NSManagedObject *backingObject = nil;
+                [backingContext performBlockAndWait:^{
+                    backingObject = [backingContext objectWithID:backingObjectID];
+                }];
                 NSString *resourceID = [backingObject valueForKey:kAFIncrementalStoreResourceIdentifierAttributeName];
                 [managedObjectIDs addObject:[self objectIDForEntity:fetchRequest.entity withResourceIdentifier:resourceID]];
             }
@@ -491,8 +507,13 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
             return managedObjectIDs;
         }
         case NSDictionaryResultType:
-        case NSCountResultType:
-            return [backingContext executeFetchRequest:backingFetchRequest error:error];
+        case NSCountResultType: {
+            __block NSArray *backingObjectIDs = nil;
+            [backingContext performBlockAndWait:^{
+                backingObjectIDs = [backingContext executeFetchRequest:backingFetchRequest error:error];
+            }];
+            return backingObjectIDs;
+        }
         default:
             return nil;
     }
@@ -521,9 +542,11 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                     [backingContext save:nil];
                 }];
                 
-                [insertedObject willChangeValueForKey:@"objectID"];
-                [context obtainPermanentIDsForObjects:[NSArray arrayWithObject:insertedObject] error:nil];
-                [insertedObject didChangeValueForKey:@"objectID"];
+                [context performBlockAndWait:^{
+                    [insertedObject willChangeValueForKey:@"objectID"];
+                    [context obtainPermanentIDsForObjects:[NSArray arrayWithObject:insertedObject] error:nil];
+                    [insertedObject didChangeValueForKey:@"objectID"];                    
+                }];
                 continue;
             }
             
@@ -555,11 +578,12 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                         [backingContext save:nil];
                     }];
 
-                    [insertedObject willChangeValueForKey:@"objectID"];
-                    [context obtainPermanentIDsForObjects:[NSArray arrayWithObject:insertedObject] error:nil];
-                    [insertedObject didChangeValueForKey:@"objectID"];
-
-                    [context refreshObject:insertedObject mergeChanges:NO];
+                    [context performBlockAndWait:^{
+                        [insertedObject willChangeValueForKey:@"objectID"];
+                        [context obtainPermanentIDsForObjects:[NSArray arrayWithObject:insertedObject] error:nil];
+                        [insertedObject didChangeValueForKey:@"objectID"];
+                        [context refreshObject:insertedObject mergeChanges:NO];
+                    }];
                 }
             } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
 				 NSLog(@"Insert Error: %@", error);
@@ -580,9 +604,11 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
 						}
 					}
 					
-					for (NSManagedObject *destinationObject in destinationObjects) {
-						[context refreshObject:destinationObject mergeChanges:NO];
-					}
+                    [context performBlockAndWait:^{
+                        for (NSManagedObject *destinationObject in destinationObjects) {
+                            [context refreshObject:destinationObject mergeChanges:NO];
+                        }
+                    }];
 				}
             }];
             
@@ -616,11 +642,15 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
                         [backingContext save:nil];
                     }];
 
-                    [context refreshObject:updatedObject mergeChanges:YES];
+                    [context performBlockAndWait:^{
+                        [context refreshObject:updatedObject mergeChanges:YES];
+                    }];
                 }
             } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
                 NSLog(@"Update Error: %@", error);
-                [context refreshObject:updatedObject mergeChanges:NO];
+                [context performBlockAndWait:^{
+                    [context refreshObject:updatedObject mergeChanges:NO];
+                }];
             }];
             
             [mutableOperations addObject:operation];
