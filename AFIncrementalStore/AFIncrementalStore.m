@@ -377,7 +377,10 @@ withAttributeAndRelationshipValuesFromManagedObject:(NSManagedObject *)managedOb
         for (NSString *relationshipName in relationshipRepresentations) {
             NSRelationshipDescription *relationship = [[entity relationshipsByName] valueForKey:relationshipName];
             id relationshipRepresentation = [relationshipRepresentations objectForKey:relationshipName];
-            if (!relationship || (relationship.isOptional && (!relationshipRepresentation || [relationshipRepresentation isEqual:[NSNull null]]))) {
+            // Old condition (not sure if change will break things)
+            // if (!relationship || (relationship.isOptional && (!relationshipRepresentation || [relationshipRepresentation isEqual:[NSNull null]]))) {
+            // TODO: maybe there's a better way to ensure that an NSNull in the API will set the relationship value to nil?
+            if (!relationship || (relationshipRepresentation == nil)) {
                 continue;
             }
                         
